@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         TorontoMLS.net UI Improvements
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
+// @updateURL    https://github.com/russetwolf/TorontoMLS-UI-Improvements/raw/master/TorontoMLS-UI-Improvements.user.js
+// @downloadURL  https://github.com/russetwolf/TorontoMLS-UI-Improvements/raw/master/TorontoMLS-UI-Improvements.user.js
 // @description  Minor tweaks to improve usability of the listings page (1. clickable links in top table, 2. G-Maps link for each info sheet)
 // @author       Alex Cendeck
 // @match        http://v3.torontomls.net/*
