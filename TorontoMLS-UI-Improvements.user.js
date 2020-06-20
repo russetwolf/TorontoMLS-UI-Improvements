@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TorontoMLS.net UI Improvements
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @updateURL    https://github.com/russetwolf/TorontoMLS-UI-Improvements/raw/master/TorontoMLS-UI-Improvements.user.js
 // @downloadURL  https://github.com/russetwolf/TorontoMLS-UI-Improvements/raw/master/TorontoMLS-UI-Improvements.user.js
 // @description  Source and Liscence: https://github.com/russetwolf/TorontoMLS-UI-Improvements
@@ -79,12 +79,28 @@
   }
 
   function removeUnitNumberFromAddress(address) {
+    // separate postal code from rest of address, removing whitespace.
+    var postcode = address.slice(-7).replace(/\s\s+/g, ' ');
+    address = address.substring(0, address.length - 7).trimEnd();
+
+    // split the array on spaces to get the house number at the front
     var addressArr = address.split(" ");
-    var postcode = addressArr[addressArr.length-1];
-    var newAddress = addressArr[0] + address.replace(/[0-9]/g, '').replace(/\s\s+/g, ' ');
-    var addressArr2 = newAddress.split(" ");
-    addressArr2[addressArr2.length-1] = postcode;
-    newAddress = addressArr2.join(' ');
-    return newAddress;
+    // split the house number on dash to separate out the unit number at the front from the house number at the back
+    var houseNumArr = addressArr[0].split("-");
+    var houseNumber = "";
+    if (houseNumArr.length > 1) {
+      // if there is a unit number, take the second number since it's the house number; trim letters
+      houseNumber = houseNumArr[1].replace(/\D/g,'');
+    } else {
+      // otherwise, take the first (only) number and trim letters
+      houseNumber = houseNumArr[0].replace(/\D/g,'');
+    }
+
+    // remove digits, dashes, and duplicate spaces from the address
+    address = address.replace(/[0-9]/g, '').replace(/-/g, '').replace(/\s\s+/g, ' ');
+
+    // add back in the huse number and postal code
+    address = houseNumber + ' ' + address + ' ' + postcode;
+    return address;
   }
 })();
