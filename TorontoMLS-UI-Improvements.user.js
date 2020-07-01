@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TorontoMLS.net UI Improvements
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @updateURL    https://github.com/russetwolf/TorontoMLS-UI-Improvements/raw/master/TorontoMLS-UI-Improvements.user.js
 // @downloadURL  https://github.com/russetwolf/TorontoMLS-UI-Improvements/raw/master/TorontoMLS-UI-Improvements.user.js
 // @description  Source and Liscence: https://github.com/russetwolf/TorontoMLS-UI-Improvements
@@ -9,6 +9,7 @@
 // @match        http://v3.torontomls.net/*
 // @grant        GM_addStyle
 // @require      https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/lightgallery/1.3.2/js/lightgallery.js
 // ==/UserScript==
 
 (function(){
@@ -63,7 +64,7 @@
     var stickyToggle = document.createElement('div');
     stickyToggle.id = "stickyToggleDiv";
     stickyToggle.innerHTML = '<button id="stickyToggleButton" type="button">'
-                + 'Toggle Summary sheets (experimental)</button>'
+                + 'Toggle Sheet Summaries</button>'
                 ;
     document.body.prepend(stickyToggle);
     document.getElementById ("stickyToggleButton").addEventListener (
@@ -128,14 +129,14 @@
         listingObj.type = box.children[0].innerText;
       }// Extract room numbers
       if(j === 11) {
-        listingObj.baths = box.children[2].innerText.split(":")[1];
+        listingObj.baths = parseInt(box.children[2].innerText.split(":")[1]);
 
         var numBeds = box.children[1].innerText.split(":")[1].split(" + ");
-        listingObj.mainBeds = numBeds[0];
+        listingObj.mainBeds = parseInt(numBeds[0]);
         if (numBeds.length > 1) {
-          listingObj.basementBeds = numBeds[1];
+          listingObj.basementBeds = parseInt(numBeds[1]);
         } else {
-          listingObj.basementBeds = 0;
+          listingObj.basementBeds = parseInt(0);
         }
       }// Extract MLS#
       if(j === 12) {
@@ -237,8 +238,10 @@
                             listingObj.currentPrice*0.01/12;
     //calculate income potential
     values.rent = 0;
+      values.rentType = "none";
     if (listingObj.kitchens > 1) {
       values.rent = 1200;
+      values.rentType = "basement";
       if (listingObj.basementBeds === 1) {
         values.rent = 1400;
       } else if (listingObj.basementBeds === 2) {
@@ -247,8 +250,9 @@
         values.rent = 2200;
       }
     }
-    else if (listingObj.beds > 2) {
-      values.rent = 1000 * (listingObj.beds - 2);
+    else if (listingObj.mainBeds > 2) {
+      values.rent = 1000 * (listingObj.mainBeds - 2);
+      values.rentType = "room";
     }
 
     //calculate monthly net
@@ -257,19 +261,34 @@
   }
 
   function generateStickyContents(listingObj, calculatedValues) {
+    var url = window.location.href.split("#")[0] + '#';
     return '<table><tr>' + 
-    '<td rowspan="3"><div id="photoContainer_' + listingObj.id + '"></div></td>' + 
+    '<td rowspan="3"><div class="photoContainer" id="photoContainer_' + listingObj.id + '"></div></td>' + 
     '<td><b>$ ' + Math.ceil(listingObj.currentPrice/1000) + '<br>' + listingObj.type + '</b></td>' + 
-    '<td>Bedrooms: ' + listingObj.mainBeds + '</td>' + 
+    '<td>Bedrooms: ' + listingObj.mainBeds + ' + ' + listingObj.basementBeds + '</td>' + 
     '<td>MLS: ' + listingObj.id + '</td>' + 
     '</tr><tr>' + 
-    '<td><i>Rent: $ ' + calculatedValues.rent + '</i></td>' + 
+    '<td><i>Rent: $ ' + calculatedValues.rent + ' ' + calculatedValues.rentType + '</i></td>' + 
     '<td>Bathrooms: ' + listingObj.baths + '</td>' + 
-    '<td>' + listingObj.address + '</td>' + 
+    '<td><a class="link" href="https://www.google.com/maps/place/' + util_removeUnitNumberFromAddress(listingObj.address) + '" target="_blank">' + listingObj.address + '</a></td>' + 
     '</tr><tr>' + 
-    '<td>Net: $ ' + calculatedValues.netMonthly + '</td>' +
+    '<td>Net: $ ' + calculatedValues.netMonthly.toFixed(0) + '</td>' +
     '<td><b>Basement: ' + listingObj.basement + '</b></td>' +  
-    '<td>Sq Ft: ' + listingObj.sqft + '</td>' + 
+    '<td>Sq Ft: ' + listingObj.sqft + '</td>' +  
+    '</tr></table><p>' +
+    '<table style="border: 1px dashed black; font-size: 8px"><tr>' + 
+    '<td><a class="link" href="' + url + listingObj.id + '">' + listingObj.id + '</a></td>' + 
+    '<td><a class="link" href="https://www.google.com/maps/place/' + util_removeUnitNumberFromAddress(listingObj.address) + '" target="_blank">' + listingObj.address + '</a></td>' +
+    '<td>' + Math.ceil(listingObj.currentPrice/1000) + '</td>' + 
+    '<td>' + calculatedValues.mortgagePayment + '</td>' +
+    '<td>' + listingObj.taxes + '</td>' +
+    '<td>' + (listingObj.monthlyCost + calculatedValues.maintenance) + '</td>' +
+    '<td>' + calculatedValues.netMonthly + '</td>' +
+    '<td>' + listingObj.type + '</td>' + 
+    '<td>' + listingObj.mainBeds + '</td>' + 
+    '<td>' + calculatedValues.rentType + ': ' + listingObj.basementBeds + '</td>' + 
+    '<td>' + calculatedValues.rent + '</td>' + 
+    '<td>' + calculatedValues.netMonthly.toFixed(0) + '</td>' +
     '</tr></table>';
   }
 
@@ -327,15 +346,16 @@
   }
 
   function addPhotoBox($, clone, id, parentContainer) {
-    clone.setAttribute('id', parentContainer.id + "_photoBox");
+    clone.setAttribute('id',"photoBox_" + id);
     parentContainer.append(clone);
+    addGalleryToPhotoBox(id);
   }
 
   function addIndividualToggle($, sheet, id) {
     var toggle = document.createElement('div');
     toggle.id = "toggleDiv_" + id;
     toggle.innerHTML = '<button id="toggleButton_' + id + '" type="button">'
-                + 'Toggle</button>';
+                + 'Toggle Sheet/Summary</button>';
     sheet.parentElement.prepend(toggle);
     document.getElementById ("toggleButton_" + id).addEventListener (
     "click", individualToggleButtonAction, false );
@@ -355,4 +375,36 @@
     }
   }
 
+  function addGalleryToPhotoBox(id) {
+    document.getElementById ("photoBox_" + id).addEventListener (
+    "click", launchGallery, false );
+  }
+  function launchGallery (zEvent) {
+    try {
+        var images = $($(this)[0].children[1]).data('multi-photos')['multi-photos'];
+      }
+      catch (e) {
+        console.log(e);
+        return;
+      }
+      var _elements = [];
+      for (var i = 0; i < images.length; i++) {
+        _elements.push({
+          "src": images[i].url.split('&size')[0],
+          'thumb': images[i].url,
+          'subHtml': images[i].description,
+          download: false
+        });
+      }
+
+      $($(this)[0].children[1]).lightGallery({
+        dynamic: true,
+        dynamicEl: _elements,
+        download: false,
+        enableSwipe: true,
+        zoom: true,
+        scale: 1,
+        actualSize: true
+      });
+  }
 })();
